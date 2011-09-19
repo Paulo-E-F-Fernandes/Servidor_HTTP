@@ -1,4 +1,5 @@
-Este repositório foi criado para a realização do primeiro trabalho da disciplina de Redes de Computadores. É necessário 
-criar um servidor HTTP.
+Este repositório foi criado para a realização do primeiro trabalho da disciplina de Redes de Computadores. Para a 
+realização do mesmo, o professor informou que era necessário a criação de um repositório de controle de versão. Como 
+escolha, usamos o git, hospedando o repositório no GitHub. O trabalho consiste na criação de um servidor HTTP.
 
 git@github.com:Paulo13/Servidor_HTTP.git
