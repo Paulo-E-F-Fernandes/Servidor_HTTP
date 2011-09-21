@@ -19,6 +19,7 @@ public class ConecteCliente {
 			DataOutputStream requisicoes = new DataOutputStream(client.getOutputStream());
 			
 			System.out.println(resposta.readLine());
+			System.out.println(resposta.readLine());
 			
 			boolean boolTeste = true;
 			do {
