@@ -14,24 +14,25 @@ public class ConecteCliente {
 		String mensagem;
 		
 		try {
-			client = new Socket("localhost", 1313);
+			client = new Socket("192.168.0.137", 1313);
+			
 			BufferedReader resposta = new BufferedReader(new InputStreamReader(client.getInputStream()));
 			DataOutputStream requisicoes = new DataOutputStream(client.getOutputStream());
 			
-			System.out.println(resposta.readLine());
-			System.out.println(resposta.readLine());
+			//while((mensagem = resposta.readLine()).length() != 0) {
+				System.out.println(resposta.readLine());
+			//}
+				
+			mensagem = teclado.gets();
+				
+			requisicoes.writeBytes(mensagem + CRLF + "User-agent: Seu cliente" + CRLF + CRLF);
 			
-			boolean boolTeste = true;
-			do {
-				mensagem = teclado.gets();
-				if(mensagem != null) {
-					boolTeste = false;
-				}
-			} while(boolTeste);
+			mensagem = null;
+			while((mensagem = resposta.readLine()).length() != 0) {
+				System.out.println(mensagem);
+			}
 			
-			requisicoes.writeUTF(mensagem + CRLF);
 			client.close();
-			
 			resposta.close();
 			requisicoes.close();
 			mensagem = null;
@@ -41,5 +42,4 @@ public class ConecteCliente {
 			System.err.println("Não foi possível estabelecer uma conexão com o servidor");
 		}
 	}
-
 }

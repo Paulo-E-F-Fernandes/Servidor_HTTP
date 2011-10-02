@@ -40,7 +40,7 @@ public final class Servidor implements Runnable {
 		
 		StringTokenizer token = new StringTokenizer(pedido);
 		comando = token.nextToken();
-		pedido = "." + token.nextToken();
+		pedido = "./Arquivos/" + token.nextToken();
 		
 		respostaPedido(resposta);
 		
@@ -58,10 +58,15 @@ public final class Servidor implements Runnable {
 		}
 		else
 			if(this.comando.equals("HEAD")) {
-				
+				comandoHead(DOS);
 			}
 			else {
-				comandoBad(DOS);
+				if(this.comando.equals("POST") || this.comando.equals("DELETE") || this.comando.equals("PUT")) {
+					comandoSemSuporte(DOS);
+				}
+				else {
+					comandoBad(DOS);
+				}
 			}
 			
 	}
@@ -69,38 +74,43 @@ public final class Servidor implements Runnable {
 	private void comandoGet(DataOutputStream DOS)
 	{
 		FileInputStream file = null;
-		boolean existeFile = true;
-		try {
-			file = new FileInputStream(this.pedido);
-		}
-		catch(FileNotFoundException e) {
-			existeFile = false;
-		}
-		
 		String status = null;
 		String content = null;
-		String corpo = null;
-		if(existeFile) {
+		String length = null;
+		
+		try {
+			file = new FileInputStream(this.pedido);
+			File arquivo = new File(this.pedido);
 			status = "HTTP 1.1 200 OK!" + CRLF;
 			content = "Content-type: " + contentType(pedido) + CRLF;
+			length = "Content-length: " + arquivo.length() + CRLF;
 		}
-		else {
-			status = "HTTP 1.1 404 Not Found!" + CRLF;
-			content = "Content-type: text/html" + CRLF;
-			corpo = "<HTML><HEAD><TITLE>404 Not Found</TITLE></HEAD><BODY>404 Not Found</BODY></HTML>";
+		catch(FileNotFoundException e) {
+			try {
+				file = new FileInputStream("./Arquivos/404.html");
+				status = "HTTP 1.1 404 Not Found!" + CRLF;
+				content = "Content-type: text/html" + CRLF;
+				length = "Content-length: 0" + CRLF;
+			}
+			catch(FileNotFoundException e1) {
+				System.err.println(e1);
+			}
 		}
 		
 		try {
 			DOS.writeBytes(status);
 			DOS.writeBytes(content);
+			DOS.writeBytes(length);
 			DOS.writeBytes(CRLF);
 			
-			if(existeFile) {
-				sendBytes(file, DOS);
+			// Cria um buffer de 1K para comportar os bytes no caminho para o socket.
+			byte[] buffer = new byte[1024];
+			int bytes = 0;
+			// Copiar o arquivo requisitado dentro da cadeia de saída do socket.
+			while((bytes = file.read(buffer)) != -1 ) {
+				DOS.write(buffer, 0, bytes);
 			}
-			else {
-				DOS.writeBytes(corpo);
-			}
+			
 			file.close();
 		}
 		catch(Exception e) {
@@ -108,43 +118,53 @@ public final class Servidor implements Runnable {
 		}	
 	}
 	
-	private void comandoBad(DataOutputStream DOS) {
+	private void comandoSemSuporte(DataOutputStream DOS) {
 		try {
-			DOS.writeBytes("HTTP 1.1 400 Bad Request!" + CRLF);
-		} catch (IOException e) {
+			DOS.writeBytes("Comando nao suportado!" + CRLF);
+			DOS.writeBytes(CRLF);
+		}
+		catch(Exception e) {
 			System.err.println(e);
 		}
 	}
 	
-	/*public String analisaRequisicao(String str) {
-		StringTokenizer token = new StringTokenizer(str);
-		String saida;
+	private void comandoHead(DataOutputStream DOS) {
+		FileInputStream file = null;
+		String status = null;
+		String content = null;
+		String length = null;
 		
-		if(token.nextToken().equals("GET")) {
-			saida = new String("GET");
+		try {
+			file = new FileInputStream(this.pedido);
+			File arquivo = new File(this.pedido);
+			status = "HTTP 1.1 200 OK!" + CRLF;
+			content = "Content-type: " + contentType(pedido) + CRLF;
+			length = "Content-length: " + arquivo.length() + CRLF;
 		}
-		else { 
-			if(token.nextToken().equals("HEAD")) {
-				saida = new String("HEAD");
-			}
-			else {
-				saida = new String("POST");
-			}
+		catch(FileNotFoundException e) {
+			status = "HTTP 1.1 404 Not Found!" + CRLF;
+			content = "Content-type: " + contentType(pedido) + CRLF;
+			length = "Content-length: 0" + CRLF;
 		}
-		// Para pular o comando que já foi identificado
-		token.nextToken();
-		str = token.nextToken();
-		return saida;
-	}*/
 	
-	private static void sendBytes(FileInputStream fis, OutputStream os) throws Exception
-	{
-		// Construir um buffer de 1K para comportar os bytes no caminho para o socket.
-		byte[] buffer = new byte[1024];
-		int bytes = 0;
-		// Copiar o arquivo requisitado dentro da cadeia de saída do socket.
-		while((bytes = fis.read(buffer)) != -1 ) {
-			os.write(buffer, 0, bytes);
+		try {
+			DOS.writeBytes(status);
+			DOS.writeBytes(content);
+			DOS.writeBytes(length);
+			DOS.writeBytes(CRLF);
+			file.close();
+		}
+		catch(Exception e) {
+			System.err.println(e);
+		}
+	}
+	
+	private void comandoBad(DataOutputStream DOS) {
+		try {
+			DOS.writeBytes("HTTP 1.1 400 Bad Request!" + CRLF);
+			DOS.writeBytes(CRLF);
+		} catch (Exception e) {
+			System.err.println(e);
 		}
 	}
 	
@@ -161,5 +181,4 @@ public final class Servidor implements Runnable {
 		}
 		return "application/octet-stream";
 	}
-	
 }
