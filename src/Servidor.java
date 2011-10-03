@@ -5,14 +5,30 @@ import java.util.*;
 public final class Servidor implements Runnable {
 	
 	final static String CRLF = new String("\r\n");
+	private String PATH;
 	private Socket socket;
 	private String pedido;
 	private String comando;
 	private String cabecalho;
 	
 	// Construtor
-	Servidor(Socket socket) {
+	Servidor(Socket socket, String dir) {
 		this.socket = socket;
+		
+		// Código para padronizar o nome do diretorio base
+		//-----------------------
+		if(dir.startsWith("/")) {
+			dir = " " + dir;
+		}
+		if(dir.endsWith("/")) {
+			dir = dir + " ";
+		}
+		
+		dir = dir.replaceFirst(" /", " ");
+		dir = dir.replaceFirst("/ ", " ");
+		//-----------------------
+		
+		this.PATH = "./" + (dir.trim());
 	}
 	
 	// Implementa o método run() da interface Runnable.
@@ -29,9 +45,12 @@ public final class Servidor implements Runnable {
 		BufferedReader requisicao = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 		DataOutputStream resposta = new DataOutputStream(socket.getOutputStream());
 		
+		// Confirmando ao cliente que a conexao foi estabelecida
 		resposta.writeBytes("HTTP 1.1 200 OK!" + CRLF);
 		
 		pedido = requisicao.readLine();
+		
+		System.out.println(pedido);
 		
 		cabecalho = null;
 		while((cabecalho = requisicao.readLine()).length() != 0) {
@@ -39,8 +58,12 @@ public final class Servidor implements Runnable {
 		}
 		
 		StringTokenizer token = new StringTokenizer(pedido);
+		// Obtendo o comando(GET, HEAD, ...)
 		comando = token.nextToken();
-		pedido = "./Arquivos/" + token.nextToken();
+		// Obtendo o arquivo a ser enviado
+		pedido = PATH + token.nextToken();
+		
+		System.out.println(pedido);
 		
 		respostaPedido(resposta);
 		
@@ -68,7 +91,6 @@ public final class Servidor implements Runnable {
 					comandoBad(DOS);
 				}
 			}
-			
 	}
 	
 	private void comandoGet(DataOutputStream DOS)
@@ -77,24 +99,21 @@ public final class Servidor implements Runnable {
 		String status = null;
 		String content = null;
 		String length = null;
+		boolean existeArquivo = true;
 		
 		try {
 			file = new FileInputStream(this.pedido);
+			// Para ter acesso ao tamanho do arquivo
 			File arquivo = new File(this.pedido);
 			status = "HTTP 1.1 200 OK!" + CRLF;
 			content = "Content-type: " + contentType(pedido) + CRLF;
 			length = "Content-length: " + arquivo.length() + CRLF;
 		}
 		catch(FileNotFoundException e) {
-			try {
-				file = new FileInputStream("./Arquivos/404.html");
-				status = "HTTP 1.1 404 Not Found!" + CRLF;
-				content = "Content-type: text/html" + CRLF;
-				length = "Content-length: 0" + CRLF;
-			}
-			catch(FileNotFoundException e1) {
-				System.err.println(e1);
-			}
+			status = "HTTP 1.1 404 Not Found!" + CRLF;
+			content = "Content-type: text/html" + CRLF;
+			length = "Content-length: 0" + CRLF;
+			existeArquivo = false;
 		}
 		
 		try {
@@ -103,14 +122,26 @@ public final class Servidor implements Runnable {
 			DOS.writeBytes(length);
 			DOS.writeBytes(CRLF);
 			
-			// Cria um buffer de 1K para comportar os bytes no caminho para o socket.
-			byte[] buffer = new byte[1024];
-			int bytes = 0;
-			// Copiar o arquivo requisitado dentro da cadeia de saída do socket.
-			while((bytes = file.read(buffer)) != -1 ) {
-				DOS.write(buffer, 0, bytes);
+			// Se o arquivo solicitado existir 
+			if(existeArquivo) {
+				// Para enviar o arquivo solicitado ao cliente
+				// ---------------------------
+				// Cria um buffer de 1K para comportar os bytes no caminho para o socket.
+				byte[] buffer = new byte[1024];
+				int bytes = 0;
+				// Copiar o arquivo requisitado dentro da cadeia de saída do socket.
+				while((bytes = file.read(buffer)) != -1 ) {
+					DOS.write(buffer, 0, bytes);
+				}
+				// ---------------------------
+			}
+			// Se o arquivo solicitado nao for encontrado
+			else {
+				DOS.writeBytes("<html><head><title>404 Not Found</title></head>" +
+						"<body><p>Not Found.</p></body></html>");
 			}
 			
+			DOS.writeBytes(CRLF);
 			file.close();
 		}
 		catch(Exception e) {
@@ -118,9 +149,10 @@ public final class Servidor implements Runnable {
 		}	
 	}
 	
+	// Como foi implementado apenas os metodos GET e HEAD, os demais metodos suportados pelo HTTP 1.1 utiliza este metodo para responder ao cliente
 	private void comandoSemSuporte(DataOutputStream DOS) {
 		try {
-			DOS.writeBytes("Comando nao suportado!" + CRLF);
+			DOS.writeBytes("Comando nao implementado!" + CRLF);
 			DOS.writeBytes(CRLF);
 		}
 		catch(Exception e) {
@@ -168,6 +200,8 @@ public final class Servidor implements Runnable {
 		}
 	}
 	
+	// Metodo para definir o tipo de conteudo do arquivo solicitado.
+	// Metodo retirado do material 'tarefas_programacao.doc' disponibilizado no site do livro do Kurose  
 	private static String contentType(String fileName)
 	{
 		if(fileName.endsWith(".htm") || fileName.endsWith(".html")) {
